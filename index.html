@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>EchoChoice</title>
+<style>
+:root{--bg:#0b0e14;--card:#151a24;--accent:#7c5cff;--accent2:#2ee6a6;--text:#f0f2f7;--muted:#8892a6;--border:#232a3a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;padding:16px}
+header{display:flex;justify-content:space-between;align-items:center;padding:8px 4px 12px;gap:8px}
+.logo{font-size:20px;font-weight:700;color:var(--accent2)}
+.logo span{color:var(--accent)}
+select{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:13px;max-width:150px}
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 4px;min-height:280px}
+.msg{max-width:85%;padding:12px 16px;border-radius:16px;font-size:16px;line-height:1.4}
+.bot{background:var(--card);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.user{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:95%}
+.opt-btn{background:var(--card);border:1px solid var(--accent);color:var(--accent2);padding:10px 14px;border-radius:20px;font-size:14px;cursor:pointer}
+.opt-btn:active{transform:scale(0.96)}
+.inputbar{display:flex;gap:8px;padding:12px 4px;border-top:1px solid var(--border);margin-top:8px}
+#textIn{flex:1;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:24px;padding:14px 18px;font-size:16px}
+.btn{width:52px;height:52px;border-radius:50%;border:none;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+#micBtn{background:var(--accent)}
+#micBtn.listening{background:#ff4b4b;animation:pulse 1s infinite}
+#sendBtn{background:var(--accent2);color:#04241a}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,75,75,.5)}70%{box-shadow:0 0 0 14px rgba(255,75,75,0)}100%{box-shadow:0 0 0 0 rgba(255,75,75,0)}}
+.status{text-align:center;font-size:12px;color:var(--muted);min-height:16px}
+.card{background:var(--card);border:1px solid var(--accent2);border-radius:16px;padding:16px;margin:8px 4px}
+.card h3{color:var(--accent2);font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.card p{font-size:15px;margin-bottom:6px}
+.map{background:#0e1420;border:1px dashed var(--border);border-radius:12px;height:140px;position:relative;margin-top:10px;overflow:hidden}
+.pin{position:absolute;width:14px;height:14px;background:var(--accent2);border-radius:50% 50% 50% 0;transform:rotate(-45deg)}
+.pin.me{background:var(--accent)}
+.pinlabel{position:absolute;font-size:9px;color:var(--muted);white-space:nowrap}
+.tag{font-size:10px;color:var(--muted);text-align:center;padding:2px}
+#testMicBtn{display:block;margin:6px auto;background:var(--card);color:var(--accent2);border:1px solid var(--border);border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer}
+#testMicBtn.listening{border-color:#ff4b4b;color:#ff4b4b;animation:pulse 1s infinite}
+#testMicResult{text-align:center;font-size:12px;color:var(--text);min-height:16px;padding:2px 12px;word-wrap:break-word}
+#testMicResult.err{color:#ff8080}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">Echo<span>Choice</span></div><select id="langSel"></select></header>
+<div class="chat" id="chat"></div>
+<div class="status" id="status"></div>
+<button id="testMicBtn">🔍 Test Mic</button>
+<div id="testMicResult"></div>
+<div class="tag" id="strategyTag"></div>
+<div class="inputbar">
+<button class="btn" id="micBtn" title="ASR voice input">MIC</button>
+<input id="textIn" placeholder="Type a message...">
+<button class="btn" id="sendBtn" title="Send">GO</button>
+</div>
+</div>
+<script>
+const LANGS=[["en","English"],["sn","Shona"],["nd","Ndebele"],["sw","Swahili"],["fr","French"],["kck","Kalanga"],["st","Sotho"],["xh","Xhosa"],["tn","Tswana"],["ve","Venda"],["to","Tonga"],["ts","Shangani"],["nmq","Nambya"]];
+const T={
+en:{greet:"Hi, I'm EchoChoice. I use AI to give you MEC-aligned family planning info in a private space. How can I help?",o1:"Learn about methods",o2:"Side effect concerns",o3:"Find a clinic",q1:"Short-term or long-lasting method?",q1a:"Short-term",q1b:"Long-lasting",a1:"Short-term methods (pills, condoms) are easy to start and stop.",a2:"Long-lasting methods (implant, IUD) are 99%+ effective with low upkeep.",q2:"Effectiveness",q3:"Nearest clinic",eff:"Per MEC guidance, implants/IUDs exceed 99% effectiveness; pills are 91-99%.",side:"Side effects vary and often ease over months. A CHW or provider can advise safely.",findClinic:"Find a clinic",done:"Here is your summary and nearest provider.",result:"Recommended: Implant (99%+ effective)",clinic:"Nearest clinic: Mbare Poly Clinic - 1.2km"},
+sn:{greet:"Mhoro, ndini EchoChoice. Ndinoshandisa AI kukupa ruzivo rwekuronga mhuri zvinoenderana ne MEC.",o1:"Dzidza nezve nzira",o2:"Hunyanzvi hwekukanganisa",o3:"Tsvaga chipatara",q1:"Nguva pfupi kana nguva refu?",q1a:"Nguva pfupi",q1b:"Nguva refu",a1:"Nzira dzenguva pfupi dziri nyore kutanga nekumira.",a2:"Nzira dzenguva refu dzine simba rinopfuura 99%.",q2:"Simba renzira",q3:"Chipatara chiri pedyo",eff:"Maererano ne MEC, implant/IUD zvinopfuura 99%; mapiritsi 91-99%.",side:"Zvinokanganisa zvinosiyana uye zvinowanzopera mumwedzi. CHW anogona kubatsira.",findClinic:"Tsvaga chipatara",done:"Heino zano nechipatara chiri pedyo.",result:"Zvinokurudzirwa: Implant (99%+)",clinic:"Chipatara: Mbare Poly Clinic - 1.2km"},
+nd:{greet:"Sawubona, ngingu EchoChoice. Ngisebenzisa AI ukukunika ulwazi lokuhlela umndeni ngokwe MEC.",o1:"Funda ngezindlela",o2:"Ukukhathazeka ngemiphumela",o3:"Thola umtholampilo",q1:"Isikhathi esifushane noma ende?",q1a:"Esifushane",q1b:"Ende",a1:"Izindlela zesikhathi esifushane zilula ukuqala nokuyeka.",a2:"Izindlela ezinde zinamandla angaphezu kuka99%.",q2:"Ukusebenza",q3:"Umtholampilo oseduze",eff:"Nge MEC, i-implant/IUD zingaphezu kuka99%; amaphilisi 91-99%.",side:"Imiphumela iyahluka, ivamise ukuphela ngezinyanga. I-CHW ingasiza.",findClinic:"Thola umtholampilo",done:"Nasi isifinyezo nomtholampilo oseduze.",result:"Kunconywa: Implant (99%+)",clinic:"Umtholampilo: Mbare Poly Clinic - 1.2km"},
+sw:{greet:"Habari, mimi ni EchoChoice. Natumia AI kutoa taarifa za uzazi wa mpango kwa mujibu wa MEC.",o1:"Jifunze kuhusu njia",o2:"Wasiwasi wa madhara",o3:"Tafuta kliniki",q1:"Njia ya muda mfupi au ndefu?",q1a:"Muda mfupi",q1b:"Muda mrefu",a1:"Njia za muda mfupi ni rahisi kuanza na kusimamisha.",a2:"Njia za muda mrefu zina ufanisi zaidi ya 99%.",q2:"Ufanisi",q3:"Kliniki iliyo karibu",eff:"Kwa mujibu wa MEC, implant/IUD zaidi ya 99%; vidonge 91-99%.",side:"Madhara hutofautiana na mara nyingi hupungua. CHW anaweza kusaidia.",findClinic:"Tafuta kliniki",done:"Hii ni muhtasari na kliniki iliyo karibu.",result:"Inapendekezwa: Implant (99%+)",clinic:"Kliniki: Mbare Poly Clinic - 1.2km"},
+fr:{greet:"Bonjour, je suis EchoChoice. J'utilise l'IA pour des infos de planification familiale conformes MEC.",o1:"Découvrir les méthodes",o2:"Inquiétudes sur effets",o3:"Trouver une clinique",q1:"Méthode courte durée ou longue durée?",q1a:"Courte durée",q1b:"Longue durée",a1:"Les méthodes courtes sont faciles à commencer et arrêter.",a2:"Les méthodes longues sont efficaces à plus de 99%.",q2:"Efficacité",q3:"Clinique proche",eff:"Selon MEC, implant/DIU dépassent 99%; pilules 91-99%.",side:"Les effets varient et s'atténuent souvent. Un CHW peut conseiller.",findClinic:"Trouver une clinique",done:"Voici votre résumé et clinique proche.",result:"Recommandé: Implant (99%+)",clinic:"Clinique: Mbare Poly Clinic - 1.2km"},
+kck:{greet:"Loshoni, ndini EchoChoice. Ndinoshandisa AI kupa ruzivo rwe MEC pamusoro pekuronga mhuri.",o1:"Dzidza nezve nzira",o2:"Kukanganisa",o3:"Tsvaga chipatara",q1:"Nguva pfupi kana refu?",q1a:"Pfupi",q1b:"Refu",a1:"Nzira pfupi dziri nyore kutanga.",a2:"Nzira refu dzine simba rinopfuura 99%.",q2:"Simba",q3:"Chipatara chiri pedyo",eff:"Ne MEC, implant/IUD 99%+; mapiritsi 91-99%.",side:"Zvinosiyana uye zvinopera nguva. CHW anobatsira.",findClinic:"Tsvaga chipatara",done:"Heino zano nechipatara.",result:"Zvinokurudzirwa: Implant (99%+)",clinic:"Chipatara: Mbare Poly Clinic - 1.2km"},
+st:{greet:"Dumela, ke EchoChoice. Ke sebedisa AI ho fana ka tlhahiso ea meriana ea MEC.",o1:"Ithute ka mekhoa",o2:"Matshwenyeho a diphello",o3:"Fumana kliniki",q1:"Nako e khuts'oane kapa e telele?",q1a:"E khuts'oane",q1b:"E telele",a1:"Mekhoa e khuts'oane e bonolo ho qala le ho emisa.",a2:"Mekhoa e telele e sebetsa hantle ka 99%+.",q2:"Ts'ebetso",q3:"Kliniki e haufi",eff:"Ho ea ka MEC, implant/IUD li fetang 99%; lipilisi 91-99%.",side:"Diphello di fapafapane, hangata di fokotseha. CHW e ka thusa.",findClinic:"Fumana kliniki",done:"Ena ke kakaretso le kliniki e haufi.",result:"Ho kgothaletswa: Implant (99%+)",clinic:"Kliniki: Mbare Poly Clinic - 1.2km"},
+xh:{greet:"Molo, ndinguEchoChoice. Ndisebenzisa i-AI ukunika ulwazi lokucwangcisa usapho ngokwe MEC.",o1:"Funda ngeendlela",o2:"Uxhalabo ngeziphumo",o3:"Fumana ikliniki",q1:"Ixesha elifutshane okanye elide?",q1a:"Elifutshane",q1b:"Elide",a1:"Iindlela ezifutshane zilula ukuqala nokuyeka.",a2:"Iindlela ezinde zisebenza ngokugqithisileyo kwi99%.",q2:"Ukusebenza",q3:"Ikliniki ekufutshane",eff:"Nge MEC, i-implant/IUD ingaphaya kwe99%; amayeza 91-99%.",side:"Iziphumo ziyahluka, zidla ngokuphela. I-CHW inganceda.",findClinic:"Fumana ikliniki",done:"Nasi isishwankathelo nekliniki ekufutshane.",result:"Kucetyiswa: Implant (99%+)",clinic:"Ikliniki: Mbare Poly Clinic - 1.2km"},
+tn:{greet:"Dumela, ke EchoChoice. Ke dirisa AI go naya tshedimosetso ya thulaganyo ya lelapa ya MEC.",o1:"Ithute ka mekgwa",o2:"Matshwenyego ka diphelelo",o3:"Batla kliniki",q1:"Nako e khutshwane kgotsa e telele?",q1a:"E khutshwane",q1b:"E telele",a1:"Mekgwa e khutshwane e motlhofo go simolola le go emisa.",a2:"Mekgwa e melele e dira sentle ka 99%+.",q2:"Go dira sentle",q3:"Kliniki e gaufi",eff:"Ka MEC, implant/IUD di feta 99%; dipilisi 91-99%.",side:"Diphelelo di farologana, gantsi di fokotsega. CHW e ka thusa.",findClinic:"Batla kliniki",done:"Ke kakaretso le kliniki e gaufi.",result:"Go kgothalediwa: Implant (99%+)",clinic:"Kliniki: Mbare Poly Clinic - 1.2km"},
+ve:{greet:"Ndaa, ndi EchoChoice. Ndi shumisa AI u ni ni mafhungo a MEC nga ha u dzudzanya muta.",o1:"Guda nga ndila",o2:"Vhutsila ha zwiitea",o3:"Wana vhavhelegisi",q1:"Tshifhinga tshipfufhi kana tshilapfu?",q1a:"Tshipfufhi",q1b:"Tshilapfu",a1:"Ndila dza tshifhinga tshipfufhi dzi leluwa u thoma na u litsha.",a2:"Ndila dza tshifhinga tshilapfu dzi shuma nga 99%+.",q2:"U shuma",q3:"Vhavhelegisi vha tsini",eff:"Nga MEC, implant/IUD dzi fhira 99%; mapilisi 91-99%.",side:"Zwiitea zwi a fhambana, zwi fhela nga miedzi. CHW a nga thusa.",findClinic:"Wana vhavhelegisi",done:"Hei ndi tshihubulelo na vhavhelegisi vha tsini.",result:"Zwi themendelwa: Implant (99%+)",clinic:"Vhavhelegisi: Mbare Poly Clinic - 1.2km"},
+to:{greet:"Mwabuka, ndime EchoChoice. Ndilabelesya AI kupa lwiiyo lwa MEC atala akubamba lukwatano.",o1:"Iiya atala anzila",o2:"Kuyowa milimo yabili",o3:"Jana chibbadela",q1:"Chiindi chifwaafwi na chilamfu?",q1a:"Chifwaafwi",q1b:"Chilamfu",a1:"Nzila zyachiindi chifwaafwi nzifwaafwi kutalika akuleka.",a2:"Nzila zyachiindi chilamfu zilabeleka kabotu 99%+.",q2:"Kubeleka kabotu",q3:"Chibbadela chiswaanaanina",eff:"Kweelana a MEC, implant/IUD ziinda 99%; mapiliisi 91-99%.",side:"Milimo yabili ilasiyana, ilamana kumana. CHW ulakonzya kugwasya.",findClinic:"Jana chibbadela",done:"Eechi ndilo lwiiyo achibbadela chiswaanaanina.",result:"Chiyandaanya: Implant (99%+)",clinic:"Chibbadela: Mbare Poly Clinic - 1.2km"},
+ts:{greet:"Avuxeni, hi EchoChoice. Ndzi tirhisa AI ku nyika rungula ra ku hlela ndyangu hi ku ya hi MEC.",o1:"Dyondza hi tindlela",o2:"Ku vilela hi swihitisiwa",o3:"Kuma kliniki",q1:"Nkarhi wo koma kumbe wo leha?",q1a:"Wo koma",q1b:"Wo leha",a1:"Tindlela to koma i to olova ku sungula na ku yima.",a2:"Tindlela to leha ti tirha kahle ku tlula 99%+.",q2:"Ku tirha kahle",q3:"Kliniki yo tshinela",eff:"Hi ku ya hi MEC, implant/IUD ti tlula 99%; mapilisi 91-99%.",side:"Swihitisiwa swi hambana, swi hlamula endzhaku ka tin'hweti. CHW nga pfuna.",findClinic:"Kuma kliniki",done:"Lexi i xikaviso na kliniki yo tshinela.",result:"Ku bumabumeriwa: Implant (99%+)",clinic:"Kliniki: Mbare Poly Clinic - 1.2km"},
+nmq:{greet:"Riuwa, ndini EchoChoice. Ndinoshandisa AI kupa ruzivo rwe MEC rwekuronga mhuri.",o1:"Dzidza nezve nzira",o2:"Kukanganisa",o3:"Tsvaga chipatara",q1:"Nguva pfupi kana refu?",q1a:"Pfupi",q1b:"Refu",a1:"Nzira pfupi dziri nyore kutanga nekumira.",a2:"Nzira refu dzine simba rinopfuura 99%.",q2:"Simba",q3:"Chipatara chiri pedyo",eff:"Ne MEC, implant/IUD 99%+; mapiritsi 91-99%.",side:"Zvinosiyana, zvinopera nguva. CHW anobatsira.",findClinic:"Tsvaga chipatara",done:"Heino zano nechipatara.",result:"Zvinokurudzirwa: Implant (99%+)",clinic:"Chipatara: Mbare Poly Clinic - 1.2km"}
+};
+const STRATEGIES=["myth-busting","peer-narrative","directive"];
+let lang="en",strategy=STRATEGIES[Math.floor(Math.random()*STRATEGIES.length)];
+const sel=document.getElementById("langSel");
+LANGS.forEach(([code,name])=>{const o=document.createElement("option");o.value=code;o.textContent=name;sel.appendChild(o)});
+const chat=document.getElementById("chat"),statusEl=document.getElementById("status"),textIn=document.getElementById("textIn");
+document.getElementById("strategyTag").textContent="bandit arm: "+strategy;
+function t(k){return T[lang][k]||T.en[k]}
+function addMsg(text,cls){const d=document.createElement("div");d.className="msg "+cls;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
+function addOpts(opts){const wrap=document.createElement("div");wrap.className="opts";opts.forEach(([label,fn])=>{const b=document.createElement("button");b.className="opt-btn";b.textContent=label;b.onclick=fn;wrap.appendChild(b)});chat.appendChild(wrap);chat.scrollTop=chat.scrollHeight}
+function botSay(key,delay=500){statusEl.textContent="EchoChoice (RAG) is typing...";setTimeout(()=>{addMsg(t(key),"bot");statusEl.textContent=""},delay)}
+function start(){chat.innerHTML="";botSay("greet",200);setTimeout(()=>addOpts([[t("o1"),()=>{addMsg(t("o1"),"user");step1()}],[t("o2"),()=>{addMsg(t("o2"),"user");sideEffects()}],[t("o3"),()=>{addMsg(t("o3"),"user");showResult()}]]),700)}
+function step1(){botSay("q1",600);setTimeout(()=>addOpts([[t("q1a"),()=>{addMsg(t("q1a"),"user");methodInfo("a1")}],[t("q1b"),()=>{addMsg(t("q1b"),"user");methodInfo("a2")}]]),1300)}
+function methodInfo(which){botSay(which,600);setTimeout(()=>addOpts([[t("q2"),()=>{addMsg(t("q2"),"user");effInfo()}],[t("q3"),()=>{addMsg(t("q3"),"user");showResult()}]]),1300)}
+function effInfo(){botSay("eff",600);setTimeout(()=>addOpts([[t("findClinic"),()=>{addMsg(t("findClinic"),"user");showResult()}]]),1300)}
+function sideEffects(){botSay("side",600);setTimeout(()=>addOpts([[t("findClinic"),()=>{addMsg(t("findClinic"),"user");showResult()}]]),1300)}
+function showResult(){botSay("done",500);setTimeout(()=>{const card=document.createElement("div");card.className="card";card.innerHTML=`<h3>Summary (arm: ${strategy})</h3><p>${t("result")}</p><p>${t("clinic")}</p><div class="map"><div class="pin me" style="top:60px;left:40px"></div><div class="pinlabel" style="top:76px;left:20px">You</div><div class="pin" style="top:30px;left:130px"></div><div class="pinlabel" style="top:14px;left:105px">Mbare Poly Clinic</div><div class="pin" style="top:90px;left:220px"></div><div class="pinlabel" style="top:106px;left:195px">Harare Central</div><div class="pin" style="top:20px;left:280px"></div><div class="pinlabel" style="top:4px;left:255px">Avenues Clinic</div></div>`;chat.appendChild(card);chat.scrollTop=chat.scrollHeight;statusEl.textContent=""},1200)}
+async function mockLLM(userText){statusEl.textContent="EchoChoice (RAG) is typing...";await new Promise(r=>setTimeout(r,700));addMsg(t("eff"),"bot");statusEl.textContent=""}
+document.getElementById("sendBtn").onclick=()=>{const v=textIn.value.trim();if(!v)return;addMsg(v,"user");textIn.value="";mockLLM(v)};
+textIn.addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("sendBtn").click()});
+const micBtn=document.getElementById("micBtn");
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recog=null,listening=false;
+if(SR){recog=new SR();recog.continuous=false;recog.interimResults=false;
+recog.onresult=e=>{const text=e.results[0][0].transcript;addMsg(text,"user");mockLLM(text)};
+recog.onend=()=>{listening=false;micBtn.classList.remove("listening");statusEl.textContent=""};
+recog.onerror=()=>{listening=false;micBtn.classList.remove("listening");statusEl.textContent="ASR error, use text input"}}
+micBtn.onclick=()=>{if(!SR){statusEl.textContent="ASR unsupported, using mock capture...";setTimeout(()=>{const mock="I want to know about long lasting methods";addMsg(mock,"user");mockLLM(mock);statusEl.textContent=""},900);return}
+if(listening){recog.stop();return}
+listening=true;micBtn.classList.add("listening");statusEl.textContent="Listening (ASR)...";recog.lang=lang==="en"?"en-US":"en-ZA";try{recog.start()}catch(e){}};
+sel.onchange=()=>{lang=sel.value;start()};
+const testMicBtn=document.getElementById("testMicBtn"),testMicResult=document.getElementById("testMicResult");
+let testListening=false,testRecog=null;
+testMicBtn.onclick=()=>{
+testMicResult.classList.remove("err");
+if(!SR){testMicResult.textContent="ASR unsupported on this browser/device";testMicResult.classList.add("err");return}
+if(testListening){testRecog.stop();return}
+testRecog=new SR();testRecog.continuous=false;testRecog.interimResults=false;
+testRecog.lang=lang==="en"?"en-US":"en-ZA";
+testListening=true;testMicBtn.classList.add("listening");testMicResult.textContent="Listening...";
+testRecog.onresult=e=>{const text=e.results[0][0].transcript;testMicResult.textContent="Heard: \""+text+"\"";testMicResult.classList.remove("err")};
+testRecog.onerror=e=>{testMicResult.textContent="Mic error: "+e.error;testMicResult.classList.add("err")};
+testRecog.onend=()=>{testListening=false;testMicBtn.classList.remove("listening")};
+try{testRecog.start()}catch(e){testMicResult.textContent="Mic error: "+e.message;testMicResult.classList.add("err");testListening=false;testMicBtn.classList.remove("listening")}
+};
+start();
+</script>
+</body>
+</html>
